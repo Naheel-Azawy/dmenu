@@ -1,6 +1,27 @@
-dmenu - dynamic menu
+dmenu - dynamic menu - personal fork
 ====================
 dmenu is an efficient dynamic menu for X.
+
+
+Fork changes
+------------
+- personal changes
+  + location (normal, center, cursor, {top,bottom}-{left,right})
+  + font from env FONT_SIZE and FONT
+  + bw colors
+  + border color
+  + disable border when managed
+  + preselect -ve values
+- patches
+  + dmenu-bidi-20210723-b34d318.diff
+  + dmenu-border-4.9.diff
+  + dmenu-center-20200111-8cd37e1.diff
+  + dmenu-linesbelowprompt-and-fullwidth-20211014.diff
+  + dmenu-managed-4.9.diff
+  + dmenu-mousesupport-5.1.diff
+  + dmenu-password-4.7.diff
+  + dmenu-preselect-20200513-db6093f.diff
+  + dmenu-xyw-5.0.diff
 
 
 Requirements
