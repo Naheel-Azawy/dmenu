@@ -984,31 +984,23 @@ setup(void)
 			y += dmy;
 			break;
 		case LocTopRight:
-			x += dmx + info[i].width;
+			x += dmx + info[i].width - mw;
 			y += dmy;
 			break;
 		case LocBottom:
 		case LocBottomLeft:
 			x += dmx;
-			y += dmy + info[i].height;
+			y += dmy + info[i].height - mh;
 			break;
 		case LocBottomRight:
-			x += dmx + info[i].width;
-			y += dmy + info[i].height;
+			x += dmx + info[i].width - mw;
+			y += dmy + info[i].height - mh;
 			break;
 		case LocCursor:
 			cursor_pos(&x, &y);
 			x -= mw / 2;
 			break;
 		}
-
-		/* push back if it goes beyond monitor */
-		if (x < 0) x = 0;
-		if (y < 0) y = 0;
-		if (x > info[i].width - mw)
-			x = info[i].width - mw;
-		if (y > info[i].height - mh)
-			y = info[i].height - mh;
 
 		/* some extra space for the wm frame */
 		if (managed) {
