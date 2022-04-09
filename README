@@ -6,7 +6,7 @@ dmenu is an efficient dynamic menu for X.
 Fork changes
 ------------
 - personal changes
-  + location (normal, center, cursor, {top,bottom}-{left,right})
+  + location (top, bottom, {top,bottom}-{left,right}, center, cursor)
   + font from env FONT_SIZE and FONT
   + bw colors
   + border color
@@ -16,12 +16,13 @@ Fork changes
   + dmenu-bidi-20210723-b34d318.diff
   + dmenu-border-4.9.diff
   + dmenu-center-20200111-8cd37e1.diff
-  + dmenu-linesbelowprompt-and-fullwidth-20211014.diff
   + dmenu-managed-4.9.diff
-  + dmenu-mousesupport-5.1.diff
+  + dmenu-mousesupporthoverbgcol-20210123-1a13d04.diff and dmenu-mousesupportwithgrid-5.0.diff
   + dmenu-password-4.7.diff
   + dmenu-preselect-20200513-db6093f.diff
   + dmenu-xyw-5.0.diff
+  + dmenu-grid-4.9.diff
+  + dmenu-gridnav-5.0.diff
 
 
 Requirements
