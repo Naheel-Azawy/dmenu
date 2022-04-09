@@ -34,7 +34,7 @@ enum {
 }; /* color schemes */
 
 enum {
-	LocNormal, LocCenter, LocCursor,
+	LocTop, LocBottom, LocCenter, LocCursor,
 	LocTopRight, LocTopLeft,
 	LocBottomRight, LocBottomLeft
 }; /* locations */
@@ -50,7 +50,7 @@ static char fribidi_text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int dmx = 0; /* put dmenu at this x offset */
-static int dmy = 0; /* put dmenu at this y offset (measured from the bottom if topbar is 0) */
+static int dmy = 0; /* put dmenu at this y offset (measured from the bottom if location == LocBottom) */
 static unsigned int dmw = 0; /* make dmenu this wide */
 static int inputw = 0, promptw, passwd = 0;
 static int lrpad; /* sum of left and right padding */
@@ -874,6 +874,7 @@ setup(void)
 	lines = MAX(lines, 0);
 	mh = (lines + 1) * bh;
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+
 #ifdef XINERAMA
 	i = 0;
 	if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
@@ -900,44 +901,41 @@ setup(void)
 				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
-		if (location == LocNormal)
+		if (location == LocTop || location == LocBottom)
 			mw = (dmw > 0 ? dmw : info[i].width);
 		else
 			mw = MIN(MAX(max_textw() + promptw, min_width), info[i].width);
 
-		int tx = 0, ty = 0;
+		x = info[i].x_org;
+		y = info[i].y_org;
 
 		switch (location) {
-		case LocTopLeft:
-			tx = 0;
-			ty = 0;
-			break;
-		case LocTopRight:
-			tx = info[i].width;
-			ty = 0;
-			break;
-		case LocBottomLeft:
-			tx = 0;
-			ty = info[i].height;
-			break;
-		case LocBottomRight:
-			tx = info[i].width;
-			ty = info[i].height;
-			break;
-		}
-
-		if (location == LocCenter) {
+		case LocCenter:
 			x = info[i].x_org + ((info[i].width  - mw) / 2);
 			y = info[i].y_org + ((info[i].height - mh) / 2);
-		} else {
-			if (location == LocCursor) {
-				cursor_pos(&tx, &ty);
-				tx -= mw / 2;
-			}
-			if (dmx == 0) dmx = tx;
-			if (dmy == 0) dmy = ty;
-			x = info[i].x_org + dmx;
-			y = info[i].y_org + (topbar ? dmy : info[i].height - mh - dmy);
+			break;
+		case LocTop:
+		case LocTopLeft:
+			x += dmx;
+			y += dmy;
+			break;
+		case LocTopRight:
+			x += dmx + info[i].width;
+			y += dmy;
+			break;
+		case LocBottom:
+		case LocBottomLeft:
+			x += dmx;
+			y += dmy + info[i].height;
+			break;
+		case LocBottomRight:
+			x += dmx + info[i].width;
+			y += dmy + info[i].height;
+			break;
+		case LocCursor:
+			cursor_pos(&x, &y);
+			x -= mw / 2;
+			break;
 		}
 
 		/* push back if it goes beyond monitor */
@@ -950,12 +948,13 @@ setup(void)
 
 		/* some extra space for the wm frame */
 		if (managed) {
-			if (location == LocBottomLeft || location == LocBottomRight)
+			if (location == LocBottom     ||
+				location == LocBottomLeft ||
+				location == LocBottomRight)
 				y -= 2;
 			else
 				y += 1;
-			x += 1;
-			mw -= 3;
+			mw -= 2;
 		}
 
 		XFree(info);
@@ -972,8 +971,8 @@ setup(void)
 			y = (wa.height - mh) / 2;
 		} else {
 			x = dmx;
-			y = topbar ? dmy : wa.height - mh - dmy;
-			mw = (dmw>0 ? dmw : wa.width);
+			y = location != LocBottom ? dmy : wa.height - mh - dmy;
+			mw = (dmw > 0 ? dmw : wa.width);
 		}
 	}
 	for (item = items; item && item->text; ++item) {
@@ -1060,7 +1059,7 @@ main(int argc, char *argv[])
 			puts("dmenu-"VERSION"-naheel");
 			exit(0);
 		} else if (!strcmp(argv[i], "-b")) { /* appears at the bottom of the screen */
-			topbar = 0;
+			location = LocBottom;
 		} else if (!strcmp(argv[i], "-f")) { /* grabs keyboard before reading stdin */
 			fast = 1;
 		} else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
@@ -1101,8 +1100,10 @@ main(int argc, char *argv[])
 			preselected = atoi(argv[++i]);
 		} else if (!strcmp(argv[i], "-L")) { /* dmenu location */
 			char *arg = argv[++i];
-			if (strcmp(arg, "normal") == 0)
-				location = LocNormal;
+			if (strcmp(arg, "top") == 0)
+				location = LocTop;
+			else if (strcmp(arg, "bottom") == 0)
+				location = LocBottom;
 			else if (strcmp(arg, "center") == 0)
 				location = LocCenter;
 			else if (strcmp(arg, "cursor") == 0)
