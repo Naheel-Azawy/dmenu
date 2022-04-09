@@ -781,8 +781,8 @@ run(void)
 				grabfocus();
 			break;
 		case FocusOut:
-			cleanup();
-			exit(1);
+			//cleanup();
+			//exit(1);
 			break;
 		case KeyPress:
 			keypress(&ev.xkey);
@@ -973,7 +973,7 @@ setup(void)
 
 	if (managed) {
 		XTextProperty prop;
-		char *windowtitle = prompt != NULL ? prompt : "dmenu";
+		char *windowtitle = prompt != NULL ? prompt : "Menu";
 		Xutf8TextListToTextProperty(dpy, &windowtitle, 1, XUTF8StringStyle, &prop);
 		XSetWMName(dpy, win, &prop);
 		XSetTextProperty(dpy, win, &prop, XInternAtom(dpy, "_NET_WM_NAME", False));
