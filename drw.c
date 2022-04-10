@@ -249,7 +249,7 @@ drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h, int filled, int
 }
 
 int
-drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
+drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, unsigned int toppad, const char *text, int invert)
 {
 	int i, ty, ellipsis_x = 0;
 	unsigned int tmpw, ew, ellipsis_w = 0, ellipsis_len, ellipsis_width;
@@ -329,7 +329,7 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 
 		if (utf8strlen) {
 			if (render) {
-				ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
+				ty = (toppad / 2) + y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
 				XftDrawStringUtf8(d, &drw->scheme[invert ? ColBg : ColFg],
 				                  usedfont->xfont, x, ty, (XftChar8 *)utf8str, utf8strlen);
 			}
@@ -337,7 +337,7 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 			w -= ew;
 		}
 		if (render && overflow)
-			drw_text(drw, ellipsis_x, y, ellipsis_w, h, 0, "...", invert);
+			drw_text(drw, ellipsis_x, y, ellipsis_w, h, 0, toppad, "...", invert);
 
 		if (!*text || overflow) {
 			break;
@@ -411,7 +411,7 @@ drw_fontset_getwidth(Drw *drw, const char *text)
 {
 	if (!drw || !drw->fonts || !text)
 		return 0;
-	return drw_text(drw, 0, 0, 0, 0, 0, text, 0);
+	return drw_text(drw, 0, 0, 0, 0, 0, 0, text, 0);
 }
 
 unsigned int
@@ -419,7 +419,7 @@ drw_fontset_getwidth_clamp(Drw *drw, const char *text, unsigned int n)
 {
 	unsigned int tmp = 0;
 	if (drw && drw->fonts && text && n)
-		tmp = drw_text(drw, 0, 0, 0, 0, 0, text, n);
+		tmp = drw_text(drw, 0, 0, 0, 0, 0, 0, text, n);
 	return MIN(n, tmp);
 }
 

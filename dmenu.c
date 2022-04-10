@@ -17,6 +17,7 @@
 #include <X11/Xft/Xft.h>
 
 #include <fribidi.h>
+#include <Imlib2.h>
 
 #include "drw.h"
 #include "util.h"
@@ -70,6 +71,8 @@ static Drw *drw;
 static Clr *scheme[SchemeLast];
 
 #include "config.h"
+
+static unsigned int iconh = 64; // TODO: move to config?
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 static char *(*fstrstr)(const char *, const char *) = strstr;
@@ -185,7 +188,7 @@ drawitem(struct item *item, int x, int y, int w)
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
 	apply_fribidi(item->text);
-	return drw_text(drw, x, y, w, bh, lrpad / 2, fribidi_text, 0);
+	return drw_text(drw, x, y, w, bh, lrpad / 2, iconh, fribidi_text, 0);
 }
 
 static void
@@ -201,7 +204,7 @@ drawmenu(void)
 
 	if (prompt && *prompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
+		x = drw_text(drw, x, 0, promptw, bh - iconh, lrpad / 2, 0, prompt, 0);
 	}
 	/* draw input field */
 	w = (lines > 0 || !matches) ? mw - x : inputw;
@@ -209,17 +212,17 @@ drawmenu(void)
 	if (passwd) {
 	        censort = ecalloc(1, sizeof(text));
 		memset(censort, '.', strlen(text));
-		drw_text(drw, x, 0, w, bh, lrpad / 2, censort, 0);
+		drw_text(drw, x, 0, w, bh - iconh, lrpad / 2, 0, censort, 0);
 		free(censort);
 	} else {
 		apply_fribidi(text);
-		drw_text(drw, x, 0, w, bh, lrpad / 2, fribidi_text, 0);
+		drw_text(drw, x, 0, w, bh - iconh, lrpad / 2, 0, fribidi_text, 0);
     }
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		drw_rect(drw, x + curpos, 2, 2, bh - iconh - 4, 1, 0);
 	}
 
 	if (lines > 0) {
@@ -229,7 +232,7 @@ drawmenu(void)
 			drawitem(
 				item,
 				x + ((i / lines) *  ((mw - x) / columns)),
-				y + (((i % lines) + 1) * bh),
+				y + (((i % lines) + 1) * bh) - iconh,
 				(mw - x) / columns
 			);
 	} else if (matches) {
@@ -238,7 +241,7 @@ drawmenu(void)
 		w = TEXTW("<");
 		if (curr->left) {
 			drw_setscheme(drw, scheme[SchemeNorm]);
-			drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
+			drw_text(drw, x, 0, w, bh, lrpad / 2, 0, "<", 0);
 		}
 		x += w;
 		for (item = curr; item != next; item = item->right)
@@ -246,7 +249,7 @@ drawmenu(void)
 		if (next) {
 			w = TEXTW(">");
 			drw_setscheme(drw, scheme[SchemeNorm]);
-			drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
+			drw_text(drw, mw - w, 0, w, bh, lrpad / 2, 0, ">", 0);
 		}
 	}
 	drw_map(drw, win, 0, 0, mw, mh);
@@ -768,7 +771,7 @@ mousemove(XEvent *e)
 				x += w / columns;
 				y = 0;
 			}
-			y += h;
+			y += h; // TODO: consider iconh
 			if (ev->y >= y && ev->y <= (y + h) &&
 			    ev->x >= x && ev->x <= (x + w / columns)) {
 				sel = item;
@@ -933,10 +936,30 @@ setup(void)
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 
+	/* imlib2 stuff */
+	if (lines < 1)
+		iconh = 0;
+	else {
+		/* set our cache to 2 Mb so it doesn't have to go hit the disk as long as */
+		/* the images we use use less than 2Mb of RAM (that is uncompressed) */
+		imlib_set_cache_size(2048 * 1024);
+		/* set the font cache to 512Kb - again to avoid re-loading */
+		imlib_set_font_cache_size(512 * 1024);
+		/* set the maximum number of colors to allocate for 8bpp and less to 128 */
+		imlib_set_color_usage(128);
+		/* dither for depths < 24bpp */
+		imlib_context_set_dither(1);
+		/* set the display , visual, colormap and drawable we are using */
+		imlib_context_set_display(disp);
+		imlib_context_set_visual(vis);
+		imlib_context_set_colormap(cm);
+		imlib_context_set_drawable(win);
+	}
+
 	/* calculate menu geometry */
-	bh = drw->fonts->h + 2;
+	bh = drw->fonts->h + 2 + iconh;
 	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh;
+	mh = (lines + 1) * bh - iconh;
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 
 #ifdef XINERAMA
