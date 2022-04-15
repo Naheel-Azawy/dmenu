@@ -4,6 +4,7 @@
 #include <string.h>
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
+#include <Imlib2.h>
 
 #include "drw.h"
 #include "util.h"
@@ -394,6 +395,39 @@ no_match:
 		XftDrawDestroy(d);
 
 	return x + (render ? w : 0);
+}
+
+Imlib_Image
+load_icon_image(Drw *drw, const char *file, int iconh)
+{
+	Imlib_Image icon;
+	int width;
+	int height;
+	int imgsize;
+
+	icon = imlib_load_image(file);
+
+	if (icon == NULL)
+		return NULL;
+
+	imlib_context_set_image(icon);
+
+	width = imlib_image_get_width();
+	height = imlib_image_get_height();
+	imgsize = MIN(height, width);
+
+	icon = imlib_create_cropped_scaled_image(0, 0, imgsize, imgsize,
+											 iconh, iconh);
+
+	return icon;
+}
+
+void
+drw_icon(Drw *drw, Icn icon, int x, int y)
+{
+	imlib_context_set_image(icon.img);
+	imlib_context_set_drawable(drw->drawable);
+	imlib_render_image_on_drawable(x, y);
 }
 
 void

@@ -13,6 +13,36 @@ Visual  *vis;
 Colormap cm;
 int      depth;
 
+/* load and scale icon */
+static Imlib_Image
+drw_icon(const char *file, int x, int y)
+{
+	Imlib_Image icon;
+	int width;
+	int height;
+	int imgsize;
+
+	icon = imlib_load_image(file);
+
+	if (icon == NULL)
+		return NULL;
+
+	imlib_context_set_image(icon);
+
+	width = imlib_image_get_width();
+	height = imlib_image_get_height();
+	imgsize = width > height ? height : width;
+
+	icon = imlib_create_cropped_scaled_image(0, 0, imgsize, imgsize,
+											 64, 64);
+
+	imlib_context_set_image(icon);
+	imlib_render_image_on_drawable(x, y);
+	imlib_free_image();
+
+	return icon;
+}
+
 /* the program... */
 int main(int argc, char **argv)
 {
@@ -20,8 +50,6 @@ int main(int argc, char **argv)
    XEvent ev;
    /* areas to update */
    Imlib_Updates updates, current_update;
-   /* our virtual framebuffer image we draw into */
-   Imlib_Image buffer;
 
    /* connect to X */
    disp  = XOpenDisplay(NULL);
@@ -41,8 +69,6 @@ int main(int argc, char **argv)
    /* set our cache to 2 Mb so it doesn't have to go hit the disk as long as */
    /* the images we use use less than 2Mb of RAM (that is uncompressed) */
    imlib_set_cache_size(2048 * 1024);
-   /* set the font cache to 512Kb - again to avoid re-loading */
-   imlib_set_font_cache_size(512 * 1024);
    /* set the maximum number of colors to allocate for 8bpp and less to 128 */
    imlib_set_color_usage(128);
    /* dither for depths < 24bpp */
@@ -51,14 +77,12 @@ int main(int argc, char **argv)
    imlib_context_set_display(disp);
    imlib_context_set_visual(vis);
    imlib_context_set_colormap(cm);
-   imlib_context_set_drawable(win);
+   //imlib_context_set_drawable(win);
    /* infinite event loop */
    for (;;)
      {
         /* image variable */
         Imlib_Image image;
-        /* width and height values */
-        int w, h;
         
         /* init our updates to empty */
         updates = imlib_updates_init();
@@ -91,50 +115,8 @@ int main(int argc, char **argv)
              current_update; 
              current_update = imlib_updates_get_next(current_update))
           {
-             int up_x, up_y, up_w, up_h;
-
-             /* find out where the first update is */
-             imlib_updates_get_coordinates(current_update, 
-                                           &up_x, &up_y, &up_w, &up_h);
-             
-             /* create our buffer image for rendering this update */
-             buffer = imlib_create_image(up_w, up_h);
-             
-             /* we can blend stuff now */
-             imlib_context_set_blend(1);
-             
-             /* fill the window background */
-             /* load the background image - you'll need to have some images */
-             /* in ./test_images lying around for this to actually work */
-             image = imlib_load_image("/mnt/hdd1/Private/Pictures/Windows/bliss/bliss.jpg");
-             /* we're working with this image now */
-             imlib_context_set_image(image);
-             /* get its size */
-             w = imlib_image_get_width();
-             h = imlib_image_get_height();
-             /* now we want to work with the buffer */
-             imlib_context_set_image(buffer);
-             /* if the iimage loaded */
-             if (image) 
-               {
-                  /* blend image onto the buffer and scale it to 640x480 */
-                  imlib_blend_image_onto_image(image, 0, 
-                                               0, 0, w, h, 
-                                               - up_x, - up_y, 100, 100);
-                  /* working with the loaded image */
-                  imlib_context_set_image(image);
-                  /* free it */
-                  imlib_free_image();
-               }
-             
-             /* don't blend the image onto the drawable - slower */
-             imlib_context_set_blend(0);
-             /* set the buffer image as our current image */
-             imlib_context_set_image(buffer);
-             /* render the image at 0, 0 */
-             imlib_render_image_on_drawable(up_x, up_y);
-             /* don't need that temporary buffer image anymore */
-             imlib_free_image();
+            printf("aaaaaaaaaaaaaaaaaaa\n");
+            image = drw_icon("/mnt/hdd1/Private/Pictures/Windows/bliss/bliss.jpg", 0, 0);
           }
         /* if we had updates - free them */
         if (updates)

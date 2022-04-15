@@ -2,7 +2,7 @@
 /* Default settings; can be overriden by command line. */
 
 static int location = LocTop;            /* -L option; dmenu location */
-static int min_width = 300;                 /* minimum width */
+static int min_width = 300;              /* minimum width */
 /* -fn option overrides fonts[0]; default X11 font or font set */
 static const char *fonts[] = {
 	"monospace:size=14"
@@ -11,7 +11,7 @@ static const char *prompt = NULL;      /* -p  option; prompt to the left of inpu
 static const char *colors[SchemeLast][2] = {
 	/*     fg         bg       */
 	[SchemeNorm]   = { "#bbbbbb", "#000000" },
-	[SchemeSel]    = { "#000000", "#dddddd" },
+	[SchemeSel]    = { "#000000", "#bbbbbb" },
 	[SchemeOut]    = { "#000000", "#00ffff" },
 	[SchemeBorder] = { "#333333", "#000000" },
 };
@@ -30,3 +30,8 @@ static const unsigned int border_width = 1;
 
 /* -n option; preselected item starting from 0 */
 static int preselected = 0;
+
+/* icon options */
+static unsigned int icon_size = 0;
+static char *icon_command = "echo";
+static char *icon_fallback = "/usr/share/icons/Adwaita/512x512/mimetypes/application-x-generic.png";

@@ -15,9 +15,9 @@
 #include <X11/extensions/Xinerama.h>
 #endif
 #include <X11/Xft/Xft.h>
+#include <Imlib2.h>
 
 #include <fribidi.h>
-#include <Imlib2.h>
 
 #include "drw.h"
 #include "util.h"
@@ -42,6 +42,7 @@ enum {
 
 struct item {
 	char *text;
+	Icn icon;
 	struct item *left, *right;
 	int out;
 };
@@ -71,8 +72,6 @@ static Drw *drw;
 static Clr *scheme[SchemeLast];
 
 #include "config.h"
-
-static unsigned int iconh = 64; // TODO: move to config?
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 static char *(*fstrstr)(const char *, const char *) = strstr;
@@ -132,8 +131,13 @@ cleanup(void)
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (i = 0; i < SchemeLast; i++)
 		free(scheme[i]);
-	for (i = 0; items && items[i].text; ++i)
+	for (i = 0; items && items[i].text; ++i) {
 		free(items[i].text);
+		if (items[i].icon.img) {
+			imlib_context_set_image(items[i].icon.img);
+			imlib_free_image();
+		}
+	}
 	free(items);
 	drw_free(drw);
 	XSync(dpy, False);
@@ -178,8 +182,37 @@ apply_fribidi(char *str)
 }
 
 static int
+cmd_output(char *cmd, char *out)
+{
+	FILE *fp;
+	char buf[512];
+	size_t outlen;
+
+	fp = popen(cmd, "r");
+	if (fp == NULL) {
+		return -1;
+	}
+
+	*out = '\0';
+	while (fgets(buf, sizeof buf, fp) != NULL) {
+        strcat(out, buf);
+	}
+
+	outlen = strlen(out);
+	if (out[outlen - 1] == '\n')
+		out[outlen - 1] = '\0';
+
+	pclose(fp);
+	return 0;
+}
+
+static int
 drawitem(struct item *item, int x, int y, int w)
 {
+	int ret, icmdret, icx, icy;
+	char ipath[1024];
+	char icmd[sizeof ipath * 2];
+
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
 	else if (item->out)
@@ -188,7 +221,28 @@ drawitem(struct item *item, int x, int y, int w)
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
 	apply_fribidi(item->text);
-	return drw_text(drw, x, y, w, bh, lrpad / 2, iconh, fribidi_text, 0);
+	ret = drw_text(drw, x, y, w, bh, lrpad / 2, icon_size, fribidi_text, 0);
+
+	if (icon_size > 0) {
+		if (item->icon.img == NULL && !item->icon.loaded) {
+			sprintf(icmd, "%s '%s'", icon_command, item->text); // TODO: escape '
+			icmdret = cmd_output(icmd, ipath);
+			if (icmdret == 0)
+				item->icon.img = load_icon_image(drw, ipath, icon_size);
+			if (item->icon.img == NULL)
+				item->icon.img = load_icon_image(drw, icon_fallback, icon_size);
+			item->icon.loaded = 1;
+		}
+
+		icx = x + ((w - icon_size) / 2);
+		icy = y + 2;
+		if (item->icon.img != NULL && item->icon.loaded)
+			drw_icon(drw, item->icon, icx, icy);
+		else
+			drw_rect(drw, icx, icy, icon_size, icon_size, 0, 0);
+	}
+
+	return ret;
 }
 
 static void
@@ -204,7 +258,7 @@ drawmenu(void)
 
 	if (prompt && *prompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		x = drw_text(drw, x, 0, promptw, bh - iconh, lrpad / 2, 0, prompt, 0);
+		x = drw_text(drw, x, 0, promptw, bh - icon_size, lrpad / 2, 0, prompt, 0);
 	}
 	/* draw input field */
 	w = (lines > 0 || !matches) ? mw - x : inputw;
@@ -212,17 +266,17 @@ drawmenu(void)
 	if (passwd) {
 	        censort = ecalloc(1, sizeof(text));
 		memset(censort, '.', strlen(text));
-		drw_text(drw, x, 0, w, bh - iconh, lrpad / 2, 0, censort, 0);
+		drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, censort, 0);
 		free(censort);
 	} else {
 		apply_fribidi(text);
-		drw_text(drw, x, 0, w, bh - iconh, lrpad / 2, 0, fribidi_text, 0);
+		drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, fribidi_text, 0);
     }
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - iconh - 4, 1, 0);
+		drw_rect(drw, x + curpos, 2, 2, bh - icon_size - 4, 1, 0);
 	}
 
 	if (lines > 0) {
@@ -232,7 +286,7 @@ drawmenu(void)
 			drawitem(
 				item,
 				x + ((i / lines) *  ((mw - x) / columns)),
-				y + (((i % lines) + 1) * bh) - iconh,
+				y + (((i % lines) + 1) * bh) - icon_size,
 				(mw - x) / columns
 			);
 	} else if (matches) {
@@ -640,7 +694,7 @@ buttonpress(XEvent *e)
 {
 	struct item *item;
 	XButtonPressedEvent *ev = &e->xbutton;
-	int x = 0, y = 0, h = bh, w, item_num = 0;
+	int x = 0, y = -icon_size, h = bh, w, item_num = 0;
 
 	if (ev->window != win)
 		return;
@@ -698,7 +752,7 @@ buttonpress(XEvent *e)
 			if (item_num++ == lines) {
 				item_num = 1;
 				x += w / columns;
-				y = 0;
+				y = -icon_size;
 			}
 			y += h;
 			if (ev->y >= y && ev->y <= (y + h) &&
@@ -759,7 +813,7 @@ mousemove(XEvent *e)
 {
 	struct item *item;
 	XPointerMovedEvent *ev = &e->xmotion;
-	int x = 0, y = 0, h = bh, w, item_num = 0;
+	int x = 0, y = -icon_size, h = bh, w, item_num = 0;
 
 	if (lines > 0) {
 		if (prompt && *prompt)
@@ -769,9 +823,9 @@ mousemove(XEvent *e)
 			if (item_num++ == lines) {
 				item_num = 1;
 				x += w / columns;
-				y = 0;
+				y = -icon_size;
 			}
-			y += h; // TODO: consider iconh
+			y += h; // TODO: consider icon_size
 			if (ev->y >= y && ev->y <= (y + h) &&
 			    ev->x >= x && ev->x <= (x + w / columns)) {
 				sel = item;
@@ -835,6 +889,8 @@ readstdin(void)
 		if (!(items[i].text = strdup(buf)))
 			die("cannot strdup %zu bytes:", strlen(buf) + 1);
 		items[i].out = 0;
+		items[i].icon.img = NULL;
+		items[i].icon.loaded = 0;
 	}
 	if (items)
 		items[i].text = NULL;
@@ -936,30 +992,13 @@ setup(void)
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 
-	/* imlib2 stuff */
 	if (lines < 1)
-		iconh = 0;
-	else {
-		/* set our cache to 2 Mb so it doesn't have to go hit the disk as long as */
-		/* the images we use use less than 2Mb of RAM (that is uncompressed) */
-		imlib_set_cache_size(2048 * 1024);
-		/* set the font cache to 512Kb - again to avoid re-loading */
-		imlib_set_font_cache_size(512 * 1024);
-		/* set the maximum number of colors to allocate for 8bpp and less to 128 */
-		imlib_set_color_usage(128);
-		/* dither for depths < 24bpp */
-		imlib_context_set_dither(1);
-		/* set the display , visual, colormap and drawable we are using */
-		imlib_context_set_display(disp);
-		imlib_context_set_visual(vis);
-		imlib_context_set_colormap(cm);
-		imlib_context_set_drawable(win);
-	}
+		icon_size = 0;
 
 	/* calculate menu geometry */
-	bh = drw->fonts->h + 2 + iconh;
+	bh = drw->fonts->h + 2 + icon_size;
 	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh - iconh;
+	mh = (lines + 1) * bh - icon_size;
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 
 #ifdef XINERAMA
@@ -1076,6 +1115,20 @@ setup(void)
 		XSetWindowBorder(dpy, win, scheme[SchemeBorder][ColFg].pixel);
 	XSetClassHint(dpy, win, &ch);
 
+	/* imlib2 stuff */
+	if (lines > 0) {
+		/* set our cache to 2 Mb so it doesn't have to go hit the disk as long as */
+		/* the images we use use less than 2Mb of RAM (that is uncompressed) */
+		imlib_set_cache_size(2048 * 1024);
+		/* set the maximum number of colors to allocate for 8bpp and less to 128 */
+		imlib_set_color_usage(128);
+		/* dither for depths < 24bpp */
+		imlib_context_set_dither(1);
+		/* set the display , visual, colormap and drawable we are using */
+		imlib_context_set_display(dpy);
+		imlib_context_set_visual(DefaultVisual(dpy, screen));
+        imlib_context_set_colormap(DefaultColormap(dpy, screen));
+	}
 
 	/* input methods */
 	if ((xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
@@ -1116,6 +1169,7 @@ usage(void)
 	fputs("usage: dmenu [-bcCfiPv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
 	      "             [-x xoffset] [-y yoffset] [-z width]\n"
 	      "             [-nb color] [-nf color] [-sb color] [-sf color]\n"
+	      "             [-icmd command] [-isize size]\n"
 	      "             [-w windowid] [-n number] [-nm]\n", stderr);
 	exit(1);
 }
@@ -1201,6 +1255,10 @@ main(int argc, char *argv[])
 				location = LocBottomLeft;
 			else
 				die("unknown location");
+		} else if (!strcmp(argv[i], "-icmd")) { /* icon command */
+			icon_command = argv[++i];
+		} else if (!strcmp(argv[i], "-isize")) { /* icon size */
+			icon_size = atoi(argv[++i]);
 		} else {
 			usage();
 		}

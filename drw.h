@@ -26,6 +26,11 @@ typedef struct {
 	Fnt *fonts;
 } Drw;
 
+typedef struct {
+  Imlib_Image img;
+  int loaded;
+} Icn;
+
 /* Drawable abstraction */
 Drw *drw_create(Display *dpy, int screen, Window win, unsigned int w, unsigned int h);
 void drw_resize(Drw *drw, unsigned int w, unsigned int h);
@@ -53,6 +58,10 @@ void drw_setscheme(Drw *drw, Clr *scm);
 /* Drawing functions */
 void drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h, int filled, int invert);
 int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, unsigned int toppad, const char *text, int invert);
+
+/* Imlib functions */
+Imlib_Image load_icon_image(Drw *drw, const char *file, int iconh);
+void drw_icon(Drw *drw, Icn icon, int x, int y);
 
 /* Map functions */
 void drw_map(Drw *drw, Window win, int x, int y, unsigned int w, unsigned int h);
