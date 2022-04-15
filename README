@@ -6,6 +6,7 @@ dmenu is an efficient dynamic menu for X.
 Fork changes
 ------------
 - personal changes
+  + icons
   + location (top, bottom, {top,bottom}-{left,right}, center, cursor)
   + font from env FONT_SIZE and FONT
   + bw colors

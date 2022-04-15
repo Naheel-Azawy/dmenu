@@ -1,6 +1,6 @@
 .TH DMENU 1 dmenu\-VERSION
 .SH NAME
-dmenu \- dynamic menu
+dmenu \- dynamic menu \- naheel's fork
 .SH SYNOPSIS
 .B dmenu
 .RB [ \-bfiv ]
@@ -32,7 +32,13 @@ dmenu \- dynamic menu
 .IR windowid ]
 .RB [ \-n
 .IR number ]
-.RB [ \-wm ]
+.RB [ \-icmd
+.IR command ]
+.RB [ \-isize
+.IR size ]
+.RB [ \-L
+.IR location ]
+.RB [ \-nm ]
 .P
 .BR dmenu_run " ..."
 .SH DESCRIPTION
@@ -107,17 +113,27 @@ defines the selected background color.
 .BI \-sf " color"
 defines the selected foreground color.
 .TP
-.B \-v
-prints version information to stdout, then exits.
-.TP
 .BI \-n " number"
 preseslected item starting from 0.
+.TP
+.BI \-icmd " command"
+set the command to get an icon from the item's text.  The text is passed as
+an argument to the command.
+.TP
+.BI \-isize " size"
+the size of the icons.  Set to 0 to disable (default).
+.TP
+.BI \-L " location"
+set the window location.  Can be on of top, bottom, {top,bottom}-{left,right}, center, or cursor.
 .TP
 .BI \-w " windowid"
 embed into windowid.
 .TP
-.BI \-wm
-Display as a managed WM window (e.g. don't set overide_redirect flag)
+.BI \-nm
+do not display as a managed WM window (e.g. set overide_redirect flag).
+.TP
+.B \-v
+prints version information to stdout, then exits.
 .SH USAGE
 dmenu is completely controlled by the keyboard.  Items are selected using the
 arrow keys, page up, page down, home, and end.
