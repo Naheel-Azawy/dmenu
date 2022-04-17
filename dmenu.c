@@ -285,8 +285,8 @@ drawmenu(void)
 		for (item = curr; item != next; item = item->right, i++)
 			drawitem(
 				item,
-				x + ((i / lines) *  ((mw - x) / columns)),
-				y + (((i % lines) + 1) * bh) - icon_size,
+				x + ((i % columns) * ((mw - x) / columns)),
+				y + (((i / columns) + 1) *  bh) - icon_size,
 				(mw - x) / columns
 			);
 	} else if (matches) {
@@ -579,37 +579,34 @@ insert:
 		break;
 	case XK_Left:
 	case XK_KP_Left:
-		if (columns > 1) {
-			if (!sel)
-				return;
-			tmpsel = sel;
-			for (i = 0; i < lines; i++) {
-				if (!tmpsel->left || tmpsel->left->right != tmpsel) {
-					if (offscreen)
-						break;
-					return;
-				}
-				if (tmpsel == curr)
-					offscreen = 1;
-				tmpsel = tmpsel->left;
-			}
-			sel = tmpsel;
-			if (offscreen) {
-				curr = prev;
-				calcoffsets();
-			}
-			break;
+		if (columns > 1 &&
+			sel && sel->left && (sel = sel->left)->right == curr) {
+			curr = prev;
+			calcoffsets();
+            break;
 		}
 		if (cursor > 0 && (!sel || !sel->left || lines > 0)) {
 			cursor = nextrune(-1);
 			break;
 		}
-		if (lines > 0)
-			return;
-		/* fallthrough */
+		break;
 	case XK_Up:
 	case XK_KP_Up:
-		if (sel && sel->left && (sel = sel->left)->right == curr) {
+		if (!sel)
+			return;
+		tmpsel = sel;
+		for (i = 0; i < columns; i++) {
+			if (!tmpsel->left || tmpsel->left->right != tmpsel) {
+				if (offscreen)
+					break;
+				return;
+			}
+			if (tmpsel == curr)
+				offscreen = 1;
+			tmpsel = tmpsel->left;
+		}
+		sel = tmpsel;
+		if (offscreen) {
 			curr = prev;
 			calcoffsets();
 		}
@@ -640,37 +637,34 @@ insert:
 		break;
 	case XK_Right:
 	case XK_KP_Right:
-		if (columns > 1) {
-			if (!sel)
-				return;
-			tmpsel = sel;
-			for (i = 0; i < lines; i++) {
-				if (!tmpsel->right ||  tmpsel->right->left != tmpsel) {
-					if (offscreen)
-						break;
-					return;
-				}
-				tmpsel = tmpsel->right;
-				if (tmpsel == next)
-					offscreen = 1;
-			}
-			sel = tmpsel;
-			if (offscreen) {
-				curr = next;
-				calcoffsets();
-			}
-			break;
+		if (columns > 1 &&
+			sel && sel->right && (sel = sel->right) == next) {
+			curr = next;
+			calcoffsets();
+            break;
 		}
 		if (text[cursor] != '\0') {
 			cursor = nextrune(+1);
 			break;
 		}
-		if (lines > 0)
-			return;
-		/* fallthrough */
+		break;
 	case XK_Down:
 	case XK_KP_Down:
-		if (sel && sel->right && (sel = sel->right) == next) {
+		if (!sel)
+			return;
+		tmpsel = sel;
+		for (i = 0; i < columns; i++) {
+			if (!tmpsel->right || tmpsel->right->left != tmpsel) {
+				if (offscreen)
+					break;
+				return;
+			}
+			tmpsel = tmpsel->right;
+			if (tmpsel == next)
+				offscreen = 1;
+		}
+		sel = tmpsel;
+		if (offscreen) {
 			curr = next;
 			calcoffsets();
 		}
@@ -747,16 +741,12 @@ buttonpress(XEvent *e)
 		return;
 	if (lines > 0) {
 		/* vertical list: (ctrl)left-click on item */
-		w = mw - x;
+		w = (mw - promptw) / columns;
 		for (item = curr; item != next; item = item->right) {
-			if (item_num++ == lines) {
-				item_num = 1;
-				x += w / columns;
-				y = -icon_size;
-			}
-			y += h;
+			x = promptw + ((item_num % columns) * w);
+			y = (((item_num / columns) + 1) *  h) - icon_size;
 			if (ev->y >= y && ev->y <= (y + h) &&
-			    ev->x >= x && ev->x <= (x + w / columns)) {
+			    ev->x >= x && ev->x <= (x + w)) {
 				puts(item->text);
 				if (!(ev->state & ControlMask))
 					exit(0);
@@ -767,6 +757,7 @@ buttonpress(XEvent *e)
 				}
 				return;
 			}
+			++item_num;
 		}
 	} else if (matches) {
 		/* left-click on left arrow */
@@ -813,26 +804,22 @@ mousemove(XEvent *e)
 {
 	struct item *item;
 	XPointerMovedEvent *ev = &e->xmotion;
-	int x = 0, y = -icon_size, h = bh, w, item_num = 0;
+	int x = 0, y = 0, h = bh, w, item_num = 0;
 
 	if (lines > 0) {
-		if (prompt && *prompt)
-			x += promptw;
-		w = mw - x;
-		for (item = curr; item != next; item = item->right) {
-			if (item_num++ == lines) {
-				item_num = 1;
-				x += w / columns;
-				y = -icon_size;
-			}
-			y += h; // TODO: consider icon_size
+		w = (mw - promptw) / columns;
+		int count = 0;
+		for (item = curr; item != next; item = item->right) { // TODO: too slow
+			x = promptw + ((item_num % columns) * w);
+			y = (((item_num / columns) + 1) *  h) - icon_size;
 			if (ev->y >= y && ev->y <= (y + h) &&
-			    ev->x >= x && ev->x <= (x + w / columns)) {
+			    ev->x >= x && ev->x <= (x + w)) {
 				sel = item;
 				calcoffsets();
 				drawmenu();
 				return;
 			}
+			++item_num;
 		}
 	} else if (matches) {
 		x += inputw + promptw;

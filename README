@@ -13,6 +13,7 @@ Fork changes
   + border color
   + disable border when managed
   + preselect -ve values
+  + transposed grid
 - patches
   + dmenu-bidi-20210723-b34d318.diff
   + dmenu-border-4.9.diff
