@@ -579,7 +579,7 @@ insert:
 		break;
 	case XK_Left:
 	case XK_KP_Left:
-		if (columns > 1 &&
+		if ((columns > 1 || lines == 0) &&
 			sel && sel->left && (sel = sel->left)->right == curr) {
 			curr = prev;
 			calcoffsets();
@@ -637,7 +637,7 @@ insert:
 		break;
 	case XK_Right:
 	case XK_KP_Right:
-		if (columns > 1 &&
+		if ((columns > 1 || lines == 0) &&
 			sel && sel->right && (sel = sel->right) == next) {
 			curr = next;
 			calcoffsets();
