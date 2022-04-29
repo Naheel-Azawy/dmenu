@@ -212,6 +212,7 @@ drawitem(struct item *item, int x, int y, int w)
 	int ret, icmdret, icx, icy;
 	char ipath[1024];
 	char icmd[sizeof ipath * 2];
+	Imlib_Load_Error ierr;
 
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
@@ -225,13 +226,25 @@ drawitem(struct item *item, int x, int y, int w)
 
 	if (icon_size > 0) {
 		if (item->icon.img == NULL && !item->icon.loaded) {
-			sprintf(icmd, "%s '%s'", icon_command, item->text); // TODO: escape '
-			icmdret = cmd_output(icmd, ipath);
-			if (icmdret == 0)
-				item->icon.img = load_icon_image(drw, ipath, icon_size);
+			if (item->icon.fname != NULL) {
+				item->icon.img =
+					load_icon_image(drw, item->icon.fname, icon_size, &ierr);
+			} else {
+				sprintf(icmd, "%s '%s'",
+						icon_command, item->text); // TODO: escape '
+				icmdret = cmd_output(icmd, ipath); // TODO: parallelize
+				if (icmdret == 0)
+					item->icon.img =
+						load_icon_image(drw, ipath, icon_size, &ierr);
+			}
 			if (item->icon.img == NULL)
-				item->icon.img = load_icon_image(drw, icon_fallback, icon_size);
+				item->icon.img
+					= load_icon_image(drw, icon_fallback, icon_size, &ierr);
 			item->icon.loaded = 1;
+
+			if (ierr != IMLIB_LOAD_ERROR_NONE)
+				fprintf(stderr, "warning: failed loading icon for %s\n",
+						item->text);
 		}
 
 		icx = x + ((w - icon_size) / 2);
@@ -808,7 +821,6 @@ mousemove(XEvent *e)
 
 	if (lines > 0) {
 		w = (mw - promptw) / columns;
-		int count = 0;
 		for (item = curr; item != next; item = item->right) { // TODO: too slow
 			x = promptw + ((item_num % columns) * w);
 			y = (((item_num / columns) + 1) *  h) - icon_size;
@@ -858,8 +870,11 @@ paste(void)
 static void
 readstdin(void)
 {
-	char buf[sizeof text], *p;
+	char buf[sizeof text], *p, *item, *iconf;
 	size_t i, size = 0;
+
+	char *icon_target = "--icon=";
+	size_t icon_target_len = strlen(icon_target);
 
 	if (passwd) {
 		inputw = lines = 0;
@@ -873,8 +888,20 @@ readstdin(void)
 				die("cannot realloc %zu bytes:", size);
 		if ((p = strchr(buf, '\n')))
 			*p = '\0';
-		if (!(items[i].text = strdup(buf)))
-			die("cannot strdup %zu bytes:", strlen(buf) + 1);
+
+		if (strncmp(buf, icon_target, icon_target_len) == 0) {
+			iconf = strtok(buf, ";") + icon_target_len;
+			item = strtok(NULL, ";");
+			if (!(items[i].icon.fname = strdup(iconf)))
+				die("cannot strdup %zu bytes:", strlen(iconf) + 1);
+		} else {
+			items[i].icon.fname = NULL;
+			item = buf;
+		}
+
+		if (!(items[i].text = strdup(item)))
+			die("cannot strdup %zu bytes:", strlen(item) + 1);
+
 		items[i].out = 0;
 		items[i].icon.img = NULL;
 		items[i].icon.loaded = 0;

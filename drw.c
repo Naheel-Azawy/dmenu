@@ -398,14 +398,14 @@ no_match:
 }
 
 Imlib_Image
-load_icon_image(Drw *drw, const char *file, int iconh)
+load_icon_image(Drw *drw, const char *file, int iconh, Imlib_Load_Error *err)
 {
 	Imlib_Image icon;
 	int width;
 	int height;
 	int imgsize;
 
-	icon = imlib_load_image(file);
+	icon = imlib_load_image_with_error_return(file, err);
 
 	if (icon == NULL)
 		return NULL;

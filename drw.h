@@ -27,8 +27,9 @@ typedef struct {
 } Drw;
 
 typedef struct {
-  Imlib_Image img;
-  int loaded;
+	char *fname;
+	Imlib_Image img;
+	int loaded;
 } Icn;
 
 /* Drawable abstraction */
@@ -60,7 +61,7 @@ void drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h, int filled
 int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, unsigned int toppad, const char *text, int invert);
 
 /* Imlib functions */
-Imlib_Image load_icon_image(Drw *drw, const char *file, int iconh);
+Imlib_Image load_icon_image(Drw *drw, const char *file, int iconh, Imlib_Load_Error *err);
 void drw_icon(Drw *drw, Icn icon, int x, int y);
 
 /* Map functions */
