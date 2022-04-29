@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import subprocess
+import re
+import json
+from glob import glob
+
+ISIZE = 64
+HOME = os.getenv("HOME")
+CACHE = f"{HOME}/.cache/dmenu_apps"
+
+def load_icons():
+    icons = {} # {name: {size: [files]}}
+    alt   = {} # {altname: name}
+    thm = os.popen("gsettings get org.gnome.desktop.interface icon-theme") \
+            .read().strip()[1:-1]
+
+    places = [
+        f"{HOME}/.icons/{thm}",
+        f"{HOME}/.local/share/icons",
+        f"/usr/share/icons/{thm}"]
+    if thm != "Adwaita":
+        places.append("/usr/share/icons/Adwaita")
+    places.append("/usr/share/icons/hicolor")
+    places.append("/usr/share/app-info/icons")
+    places.append("/usr/share/pixmaps")
+
+    for d in places:
+        if not os.path.isdir(d):
+            continue
+        for f in glob(f"{d}/**", recursive=True):
+            if not os.path.isfile(f):
+                continue
+            if "symbolic" in f:
+                continue
+
+            name = os.path.basename(f)
+            name = name[0:name.rfind(".")]
+            try:
+                size = int(re.match(".+\/(\d+)x\d+\/.+", f)[1])
+            except:
+                size = 0
+
+            if name not in icons:
+                icons[name] = {}
+                # sometimes, the icon name is appname_iconname
+                if "_" in name:
+                    altname = name[name.find("_") + 1:]
+                    alt[altname] = name
+
+            if size not in icons[name]:
+                icons[name][size] = []
+            icons[name][size].append(f)
+
+    for a in alt:
+        if a not in icons:
+            icons[a] = alt[a]
+
+    return icons
+
+def load_icon(icons, name, size=ISIZE):
+    if name not in icons:
+        return None
+    if type(icons[name]) == str:
+        name = icons[name]
+    if size not in icons[name]:
+        size = max(icons[name].keys())
+    return icons[name][size][0]
+
+def readdesktops():
+    res = {}
+    icons = load_icons()
+    for desk_dir in ["/usr/share/applications",
+                     f"{HOME}/.local/share/applications"]:
+        for fname in os.listdir(desk_dir):
+            if not fname.endswith(".desktop"):
+                continue
+
+            with open(f"{desk_dir}/{fname}", "r") as f:
+                name, icon, nodisp = None, None, None
+                for line in f.readlines():
+                    pair = [i.strip() for i in line.split("=")]
+                    if name is None and pair[0] == "Name":
+                        name = pair[1].strip()
+                    elif icon is None and pair[0] == "Icon":
+                        icon = pair[1].strip()
+                    elif nodisp is None and pair[0] == "NoDisplay":
+                        nodisp = pair[1].strip() == "true"
+                    elif nodisp is None and pair[0] == "OnlyShowIn":
+                        nodisp = True # ignore all apps using that
+
+                if nodisp:
+                    continue
+
+                if icon is None:
+                    iconf = ""
+                elif icon[0] == '/' and os.path.exists(icon):
+                    iconf = icon
+                else:
+                    iconf = load_icon(icons, icon)
+
+            res[name] = [fname, iconf]
+    return res
+
+def prepare():
+    f = open(CACHE, "w")
+    json.dump(readdesktops(), f)
+    f.close()
+
+def loadcache():
+    j = None
+    try:
+        with open(CACHE, "r") as f:
+            j = json.load(f)
+    except:
+        pass
+    return j
+
+def iconof(name):
+    j = loadcache()
+    if j[name] and len(j[name]) >= 2:
+        return j[name][1]
+    return None
+
+def fileof(name):
+    j = loadcache()
+    if j[name] and len(j[name]) >= 1:
+        return j[name][0]
+    return None
+
+def run(args=[]):
+    if not os.path.exists(CACHE):
+        prepare()
+
+    win = os.popen("xdotool getactivewindow").read().strip()
+
+    p = subprocess.Popen(["dmenu", "-i",
+                          "-z", "700",
+                          "-L", "center",
+                          #"-L", "top-left", "-y", "25",
+                          #"-w", win,
+                          "-l", "5", "-c", "4",
+                          "-isize", str(ISIZE),
+                          #"-icmd", f"python {__file__} icof",
+                          ] + args,
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         universal_newlines=True)
+
+
+    j = loadcache()
+    if j:
+        for name in sorted(j.keys()):
+            icon = j[name][1]
+            if icon:
+                icon = f"--icon={icon};"
+            else:
+                icon = ""
+            p.stdin.write(f"{icon}{name}\n")
+    p.stdin.close()
+
+    res = p.stdout.read().strip()
+    if res:
+        res = fileof(res)
+        os.popen(f"gtk-launch {res}")
+
+    return p.wait()
+
+def main():
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "icof":
+            print(iconof(sys.argv[2]))
+        elif sys.argv[1] == "cache":
+            prepare()
+        elif sys.argv[1] == "icons":
+            print(json.dumps(load_icons()))
+        else:
+            run(sys.argv[1:])
+    else:
+        run()
+
+main()
