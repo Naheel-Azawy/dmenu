@@ -264,6 +264,7 @@ drawitem(struct item *item, int x, int y, int w)
 static void
 recalculatenumbers()
 {
+	return; // TODO: bring back later
 	unsigned int numer = 0, denom = 0;
 	struct item *item;
 	if (matchend) {
