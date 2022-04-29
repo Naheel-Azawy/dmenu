@@ -1014,8 +1014,10 @@ setup(void)
 				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
-		if (location == LocTop || location == LocBottom)
-			mw = (dmw > 0 ? dmw : info[i].width);
+		if (dmw > 0)
+			mw = dmw;
+		else if (location == LocTop || location == LocBottom)
+			mw = info[i].width;
 		else
 			mw = MIN(MAX(max_textw() + promptw, min_width), info[i].width);
 
