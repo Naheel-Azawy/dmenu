@@ -1104,6 +1104,8 @@ setup(void)
 		case LocCursor:
 			cursor_pos(&x, &y);
 			x -= mw / 2;
+			x += dmx;
+			y += dmy;
 			break;
 		}
 
