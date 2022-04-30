@@ -1,10 +1,21 @@
-dmenu - dynamic menu - personal fork
-====================
+
+* dmenu - dynamic menu - personal fork
 dmenu is an efficient dynamic menu for X.
+This is a personal fork that adds several additional features.
+I'm not sure if it still resembles dmenu or not.
 
+** Screenshots
+Running ~dmenu_run_apps~
+[[./imgs/applications-menu.png]]
 
-Fork changes
-------------
+Personal [[https://github.com/Naheel-Azawy/mpv-config][config]] of mpv
+[[./imgs/mpv-menu.png]]
+
+Power menu
+[[./imgs/power-menu.png]]
+[[./imgs/power-confirm.png]]
+
+** Fork changes
 - personal changes
   + icons
   + location (top, bottom, {top,bottom}-{left,right}, center, cursor)
@@ -27,23 +38,19 @@ Fork changes
   + dmenu-gridnav-5.0.diff
   + dmenu-numbers-4.9.diff
 
-
-Requirements
-------------
+** Requirements
 In order to build dmenu you need the Xlib header files.
 
-
-Installation
-------------
-Edit config.mk to match your local setup (dmenu is installed into
-the /usr/local namespace by default).
+** Installation
+Edit ~config.mk~ to match your local setup (dmenu is installed into
+the ~/usr/local~ namespace by default).
 
 Afterwards enter the following command to build and install dmenu
 (if necessary as root):
 
-    make clean install
+#+begin_src shell-script
+  make clean install
+#+end_src
 
-
-Running dmenu
--------------
+** Running dmenu
 See the man page for details.
