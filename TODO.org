@@ -1,0 +1,9 @@
+* item options
+- [X] icon
+- [X] value
+- [ ] id (for replacement)
+- [ ] right click
+
+* scroll
+- [ ] scroll bar
+- [ ] smooth scroll?

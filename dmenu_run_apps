@@ -9,7 +9,6 @@ from glob import glob
 
 ISIZE = 64
 HOME = os.getenv("HOME")
-CACHE = f"{HOME}/.cache/dmenu_apps"
 
 def load_icons():
     icons = {} # {name: {size: [files]}}
@@ -70,7 +69,6 @@ def load_icon(icons, name, size=ISIZE):
     return icons[name][size][0]
 
 def readdesktops():
-    res = {}
     icons = load_icons()
     for desk_dir in ["/usr/share/applications",
                      f"{HOME}/.local/share/applications"]:
@@ -101,84 +99,43 @@ def readdesktops():
                 else:
                     iconf = load_icon(icons, icon)
 
-            res[name] = [fname, iconf]
-    return res
-
-def prepare():
-    f = open(CACHE, "w")
-    json.dump(readdesktops(), f)
-    f.close()
-
-def loadcache():
-    j = None
-    try:
-        with open(CACHE, "r") as f:
-            j = json.load(f)
-    except:
-        pass
-    return j
-
-def iconof(name):
-    j = loadcache()
-    if j[name] and len(j[name]) >= 2:
-        return j[name][1]
-    return None
-
-def fileof(name):
-    j = loadcache()
-    if j[name] and len(j[name]) >= 1:
-        return j[name][0]
-    return None
+            yield name, f"--icon={iconf} --value={fname} {name}\n"
 
 def run(args=[]):
-    if not os.path.exists(CACHE):
-        prepare()
-
-    win = os.popen("xdotool getactivewindow").read().strip()
-
     p = subprocess.Popen(["dmenu", "-i",
                           "-z", "700",
                           "-L", "center",
-                          #"-L", "top-left", "-y", "25",
-                          #"-w", win,
                           "-l", "5", "-c", "4",
                           "-isize", str(ISIZE),
-                          #"-icmd", f"python {__file__} icof",
                           ] + args,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          universal_newlines=True)
 
-
-    j = loadcache()
-    if j:
-        for name in sorted(j.keys()):
-            icon = j[name][1]
-            if icon:
-                icon = f"--icon={icon};"
-            else:
-                icon = ""
-            p.stdin.write(f"{icon}{name}\n")
+    for name, line in sorted(list(readdesktops())):
+        p.stdin.write(line)
     p.stdin.close()
 
     res = p.stdout.read().strip()
     if res:
-        res = fileof(res)
+        print(f"Running {res}")
         os.popen(f"gtk-launch {res}")
 
     return p.wait()
 
 def main():
     if len(sys.argv) > 1:
-        if sys.argv[1] == "icof":
-            print(iconof(sys.argv[2]))
-        elif sys.argv[1] == "cache":
-            prepare()
-        elif sys.argv[1] == "icons":
-            print(json.dumps(load_icons()))
+        args = sys.argv[1:]
+        if sys.argv[1] == "icons":
+            icons = load_icons()
+            for name in icons:
+                f = load_icon(icons, name)
+                print(f"--icon={f} --value={f} {name}")
         else:
-            run(sys.argv[1:])
+            return run(args)
     else:
-        run()
+        return run()
+    return 0
 
-main()
+if __name__ == "__main__":
+    exit(main())

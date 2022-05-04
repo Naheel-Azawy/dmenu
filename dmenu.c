@@ -44,6 +44,8 @@ enum {
 
 struct item {
 	char *text;
+	char *value;
+	char *id;
 	Icn icon;
 	struct item *left, *right;
 	int out;
@@ -250,11 +252,14 @@ drawitem(struct item *item, int x, int y, int w)
 						item->text);
 		}
 
+		if (icon_size > w)
+			die("window width is too small or icons size is too large");
+
 		icx = x + ((w - icon_size) / 2);
 		icy = y + 2;
-		if (item->icon.img != NULL && item->icon.loaded)
+		if (item->icon.img != NULL && item->icon.loaded) {
 			drw_icon(drw, item->icon, icx, icy);
-		else
+		} else
 			drw_rect(drw, icx, icy, icon_size, icon_size, 0, 0);
 	}
 
@@ -667,7 +672,9 @@ insert:
 		break;
 	case XK_Return:
 	case XK_KP_Enter:
-		puts((sel && !(ev->state & ShiftMask)) ? sel->text : text);
+		puts((sel && !(ev->state & ShiftMask)) ?
+			 (sel->value == NULL ? sel->text : sel->value)
+			 : text);
 		if (!(ev->state & ControlMask)) {
 			cleanup();
 			exit(0);
@@ -681,7 +688,7 @@ insert:
 			sel && sel->right && (sel = sel->right) == next) {
 			curr = next;
 			calcoffsets();
-            break;
+			break;
 		}
 		if (text[cursor] != '\0') {
 			cursor = nextrune(+1);
@@ -745,11 +752,11 @@ buttonpress(XEvent *e)
 
 	/* left-click on input: clear input,
 	 * NOTE: if there is no left-arrow the space for < is reserved so
-	 *       add that to the input width */
+	 *		 add that to the input width */
 	if (ev->button == Button1 &&
-	   ((lines <= 0 && ev->x >= 0 && ev->x <= x + w +
-	   ((!prev || !curr->left) ? TEXTW("<") : 0)) ||
-	   (lines > 0 && ev->y >= y && ev->y <= y + h))) {
+		((lines <= 0 && ev->x >= 0 && ev->x <= x + w +
+		  ((!prev || !curr->left) ? TEXTW("<") : 0)) ||
+		 (lines > 0 && ev->y >= y && ev->y <= y + h))) {
 		insert(NULL, -cursor);
 		drawmenu();
 		return;
@@ -757,7 +764,7 @@ buttonpress(XEvent *e)
 	/* middle-mouse click: paste selection */
 	if (ev->button == Button2) {
 		XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
-		                  utf8, utf8, win, CurrentTime);
+						  utf8, utf8, win, CurrentTime);
 		drawmenu();
 		return;
 	}
@@ -786,7 +793,7 @@ buttonpress(XEvent *e)
 			x = promptw + ((item_num % columns) * w);
 			y = (((item_num / columns) + 1) *  h) - icon_size;
 			if (ev->y >= y && ev->y <= (y + h) &&
-			    ev->x >= x && ev->x <= (x + w)) {
+				ev->x >= x && ev->x <= (x + w)) {
 				puts(item->text);
 				if (!(ev->state & ControlMask))
 					exit(0);
@@ -852,7 +859,7 @@ mousemove(XEvent *e)
 			x = promptw + ((item_num % columns) * w);
 			y = (((item_num / columns) + 1) *  h) - icon_size;
 			if (ev->y >= y && ev->y <= (y + h) &&
-			    ev->x >= x && ev->x <= (x + w)) {
+				ev->x >= x && ev->x <= (x + w)) {
 				sel = item;
 				calcoffsets();
 				drawmenu();
@@ -886,8 +893,8 @@ paste(void)
 
 	/* we have been given the current selection, now insert it into input */
 	if (XGetWindowProperty(dpy, win, utf8, 0, (sizeof text / 4) + 1, False,
-	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p)
-	    == Success && p) {
+						   utf8, &da, &di, &dl, &dl, (unsigned char **)&p)
+		== Success && p) {
 		insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t)strlen(p));
 		XFree(p);
 	}
@@ -895,13 +902,50 @@ paste(void)
 }
 
 static void
+parseline(struct item *item, char *line)
+{
+	char *text, *val, *dupped;
+	int found_opts = 1;
+
+	const char *options[] = {"--icon=", "--value=", "--id="};
+
+	text = line;
+	item->icon.fname = NULL;
+	item->icon.img = NULL;
+	item->icon.loaded = 0;
+	item->out = 0;
+
+	// TODO: build a sane parse
+	while (strncmp(text, "--", 2) == 0) {
+		for (int i = 0; i < sizeof options / sizeof options[0]; ++i) {
+			if (strncmp(text, options[i], strlen(options[i])) == 0) {
+				val = strtok(found_opts ? text : NULL, " ") +
+					strlen(options[i]);
+				if (!(dupped = strdup(val)))
+					die("cannot strdup %zu bytes:", strlen(val) + 1);
+
+				switch (i) {
+				case 0: item->icon.fname = dupped; break;
+				case 1: item->value		 = dupped; break;
+				case 2: item->id		 = dupped; break;
+				}
+
+				text += strlen(options[i]) + strlen(dupped) + 1;
+				found_opts = 0;
+				break;
+			}
+		}
+	}
+
+	if (!(item->text = strdup(text)))
+		die("cannot strdup %zu bytes:", strlen(text) + 1);
+}
+
+static void
 readstdin(void)
 {
-	char buf[sizeof text], *p, *item, *iconf;
+	char buf[sizeof text], *p;
 	size_t i, size = 0;
-
-	char *icon_target = "--icon=";
-	size_t icon_target_len = strlen(icon_target);
 
 	if (passwd) {
 		inputw = lines = 0;
@@ -916,22 +960,7 @@ readstdin(void)
 		if ((p = strchr(buf, '\n')))
 			*p = '\0';
 
-		if (strncmp(buf, icon_target, icon_target_len) == 0) {
-			iconf = strtok(buf, ";") + icon_target_len;
-			item = strtok(NULL, ";");
-			if (!(items[i].icon.fname = strdup(iconf)))
-				die("cannot strdup %zu bytes:", strlen(iconf) + 1);
-		} else {
-			items[i].icon.fname = NULL;
-			item = buf;
-		}
-
-		if (!(items[i].text = strdup(item)))
-			die("cannot strdup %zu bytes:", strlen(item) + 1);
-
-		items[i].out = 0;
-		items[i].icon.img = NULL;
-		items[i].icon.loaded = 0;
+		parseline(&items[i], buf);
 	}
 	if (items)
 		items[i].text = NULL;
