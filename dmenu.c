@@ -982,8 +982,8 @@ run(void)
 				grabfocus();
 			break;
 		case FocusOut:
-			//cleanup();
-			//exit(1);
+			cleanup();
+			exit(1);
 			break;
 		case KeyPress:
 			keypress(&ev.xkey);
