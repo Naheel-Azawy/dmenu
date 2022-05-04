@@ -1010,9 +1010,9 @@ run(void)
 			if (ev.xfocus.window != win)
 				grabfocus();
 			break;
-		case FocusOut:
-			cleanup();
-			exit(1);
+		case FocusOut: // TODO: fix this for empty desktops
+			//cleanup();
+			//exit(1);
 			break;
 		case KeyPress:
 			keypress(&ev.xkey);
