@@ -1,0 +1,14 @@
+#!/bin/sh
+
+confirm() {
+    res=$(printf 'Yes\nNo\n' |
+              dmenu                 \
+                  -L center         \
+                  -sb red -sf black \
+                  -nb black -nf red \
+                  -p "$1")
+    echo "$res"
+    [ "$res" = Yes ]
+}
+
+confirm 'Shutdown?'

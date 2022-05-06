@@ -913,6 +913,7 @@ parseline(struct item *item, char *line)
 	const char *options[] = {"--icon=", "--value=", "--id="};
 
 	text = line;
+	item->value = NULL;
 	item->icon.fname = NULL;
 	item->icon.img = NULL;
 	item->icon.loaded = 0;
@@ -929,8 +930,8 @@ parseline(struct item *item, char *line)
 
 				switch (i) {
 				case 0: item->icon.fname = dupped; break;
-				case 1: item->value		 = dupped; break;
-				case 2: item->id		 = dupped; break;
+				case 1: item->value      = dupped; break;
+				case 2: item->id         = dupped; break;
 				}
 
 				text += strlen(options[i]) + strlen(dupped) + 1;
