@@ -68,10 +68,12 @@ def load_icon(icons, name, size=ISIZE):
         size = max(icons[name].keys())
     return icons[name][size][0]
 
-def readdesktops():
+def readdesktops(src=None):
+    if src is None:
+        src = ["/usr/share/applications",
+               f"{HOME}/.local/share/applications"]
     icons = load_icons()
-    for desk_dir in ["/usr/share/applications",
-                     f"{HOME}/.local/share/applications"]:
+    for desk_dir in src:
         for fname in os.listdir(desk_dir):
             if not fname.endswith(".desktop"):
                 continue
@@ -99,9 +101,9 @@ def readdesktops():
                 else:
                     iconf = load_icon(icons, icon)
 
-            yield name, f"--icon={iconf} --value={fname} {name}\n"
+            yield name, f"--icon={iconf} --value={desk_dir}/{fname} {name}\n"
 
-def run(args=[]):
+def run(src=None, args=[]):
     p = subprocess.Popen(["dmenu", "-i",
                           "-z", "700",
                           "-L", "center",
@@ -112,29 +114,41 @@ def run(args=[]):
                          stdout=subprocess.PIPE,
                          universal_newlines=True)
 
-    for name, line in sorted(list(readdesktops())):
+    for name, line in sorted(list(readdesktops(src))):
         p.stdin.write(line)
     p.stdin.close()
 
     res = p.stdout.read().strip()
     if res:
         print(f"Running {res}")
-        os.popen(f"gtk-launch {res}")
+        with open(res, "r") as f:
+            for line in f.readlines():
+                m = re.match("^Exec=(.+)", line)
+                if m:
+                    cmd = re.sub("\s*%.\s*", "", m[1])
+                    print(cmd)
+                    os.popen(cmd)
+                    break
 
     return p.wait()
 
 def main():
+    src = None
     if len(sys.argv) > 1:
         args = sys.argv[1:]
-        if sys.argv[1] == "icons":
+
+        if args[0] == "icons":
             icons = load_icons()
             for name in icons:
                 f = load_icon(icons, name)
                 print(f"--icon={f} --value={f} {name}")
         else:
-            return run(args)
+            if args[0] == "--src":
+                src = args[1].split(":")
+                args = args[2:]
+            return run(src, args)
     else:
-        return run()
+        return run(src)
     return 0
 
 if __name__ == "__main__":

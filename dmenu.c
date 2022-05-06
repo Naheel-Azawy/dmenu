@@ -797,7 +797,7 @@ buttonpress(XEvent *e)
 			y = (((item_num / columns) + 1) *  h) - icon_size;
 			if (ev->y >= y && ev->y <= (y + h) &&
 				ev->x >= x && ev->x <= (x + w)) {
-				puts(item->text);
+				puts((sel->value == NULL ? sel->text : sel->value));
 				if (!(ev->state & ControlMask))
 					exit(0);
 				sel = item;
@@ -826,7 +826,7 @@ buttonpress(XEvent *e)
 			x += w;
 			w = MIN(TEXTW(item->text), mw - x - TEXTW(">"));
 			if (ev->x >= x && ev->x <= x + w) {
-				puts(item->text);
+				puts((sel->value == NULL ? sel->text : sel->value));
 				if (!(ev->state & ControlMask))
 					exit(0);
 				sel = item;
