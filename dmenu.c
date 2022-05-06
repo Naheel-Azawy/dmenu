@@ -231,16 +231,19 @@ drawitem(struct item *item, int x, int y, int w)
 
 	if (icon_size > 0) {
 		if (item->icon.img == NULL && !item->icon.loaded) {
-			if (item->icon.fname != NULL) {
+			if (item->icon.fname != NULL) { // provided using inline --icon=
 				item->icon.img =
 					load_icon_image(drw, item->icon.fname, icon_size, &ierr);
-			} else {
+			} else if (icon_command != NULL) { // -icmd option
 				sprintf(icmd, "%s '%s'",
 						icon_command, item->text); // TODO: escape '
 				icmdret = cmd_output(icmd, ipath); // TODO: parallelize
 				if (icmdret == 0)
 					item->icon.img =
 						load_icon_image(drw, ipath, icon_size, &ierr);
+			} else { // default
+				item->icon.img =
+					load_icon_image(drw, item->text, icon_size, &ierr);
 			}
 			if (item->icon.img == NULL)
 				item->icon.img

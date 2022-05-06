@@ -33,5 +33,5 @@ static int preselected = 0;
 
 /* icon options */
 static unsigned int icon_size = 0;
-static char *icon_command = "echo";
+static char *icon_command = NULL;
 static char *icon_fallback = "/usr/share/icons/Adwaita/512x512/mimetypes/application-x-generic.png";
