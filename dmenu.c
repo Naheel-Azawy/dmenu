@@ -67,6 +67,7 @@ static struct item *matches, *matchend;
 static struct item *prev, *curr, *next, *sel;
 static int mon = -1, screen;
 static int managed = 1;
+static int bidi = 0;
 
 static Atom clip, utf8;
 static Display *dpy;
@@ -170,20 +171,19 @@ cistrstr(const char *h, const char *n)
 static void
 apply_fribidi(char *str)
 {
-  FriBidiStrIndex len = strlen(str);
-  FriBidiChar logical[BUFSIZ];
-  FriBidiChar visual[BUFSIZ];
-  FriBidiParType base = FRIBIDI_PAR_ON;
-  FriBidiCharSet charset;
+	FriBidiStrIndex len = strlen(str);
+	FriBidiChar logical[BUFSIZ];
+	FriBidiChar visual[BUFSIZ];
+	FriBidiParType base = FRIBIDI_PAR_ON;
+	FriBidiCharSet charset;
 
-  fribidi_text[0] = 0;
-  if (len>0)
-  {
-    charset = fribidi_parse_charset("UTF-8");
-    len = fribidi_charset_to_unicode(charset, str, len, logical);
-    fribidi_log2vis(logical, len, &base, visual, NULL, NULL, NULL);
-    len = fribidi_unicode_to_charset(charset, visual, len, fribidi_text);
-  }
+	fribidi_text[0] = 0;
+	if (len > 0) {
+		charset = fribidi_parse_charset("UTF-8");
+		len = fribidi_charset_to_unicode(charset, str, len, logical);
+		fribidi_log2vis(logical, len, &base, visual, NULL, NULL, NULL);
+		len = fribidi_unicode_to_charset(charset, visual, len, fribidi_text);
+	}
 }
 
 static int
@@ -226,8 +226,12 @@ drawitem(struct item *item, int x, int y, int w)
 	else
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
-	apply_fribidi(item->text);
-	ret = drw_text(drw, x, y, w, bh, lrpad / 2, icon_size, fribidi_text, 0);
+	if (bidi) {
+		apply_fribidi(item->text);
+		ret = drw_text(drw, x, y, w, bh, lrpad / 2, icon_size, fribidi_text, 0);
+	} else {
+		ret = drw_text(drw, x, y, w, bh, lrpad / 2, icon_size, item->text, 0);
+	}
 
 	if (icon_size > 0) {
 		if (item->icon.img == NULL && !item->icon.loaded) {
@@ -309,9 +313,13 @@ drawmenu(void)
 		drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, censort, 0);
 		free(censort);
 	} else {
-		apply_fribidi(text);
-		drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, fribidi_text, 0);
-    }
+		if (bidi) {
+			apply_fribidi(text);
+			drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, fribidi_text, 0);
+		} else {
+			drw_text(drw, x, 0, w, bh - icon_size, lrpad / 2, 0, text, 0);
+		}
+	}
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
@@ -1247,7 +1255,7 @@ usage(void)
 	fputs("usage: dmenu [-bcCfiPv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
 	      "             [-x xoffset] [-y yoffset] [-z width]\n"
 	      "             [-nb color] [-nf color] [-sb color] [-sf color]\n"
-	      "             [-icmd command] [-isize size]\n"
+	      "             [-icmd command] [-isize size] [-bidi]\n"
 	      "             [-w windowid] [-n number] [-nm]\n", stderr);
 	exit(1);
 }
@@ -1280,8 +1288,11 @@ main(int argc, char *argv[])
 			passwd = 1;
 		} else if (!strcmp(argv[i], "-nm")) { /* do not display as managed wm window */
 			managed = 0;
+		} else if (!strcmp(argv[i], "-bidi")) {
+			bidi = 1;
 		} else if (i + 1 == argc) {
 			usage();
+
 		/* these options take one argument */
 		} else if (!strcmp(argv[i], "-c")) { /* number of columns in grid */
 			columns = atoi(argv[++i]);
