@@ -23,6 +23,7 @@ def load_icons():
     if thm != "Adwaita":
         places.append("/usr/share/icons/Adwaita")
     places.append("/usr/share/icons/hicolor")
+    places.append("/usr/local/share/icons/hicolor")
     places.append("/usr/share/app-info/icons")
     places.append("/usr/share/pixmaps")
 
@@ -71,6 +72,7 @@ def load_icon(icons, name, size=ISIZE):
 def readdesktops(src=None):
     if src is None:
         src = ["/usr/share/applications",
+               "/usr/local/share/applications",
                f"{HOME}/.local/share/applications"]
     icons = load_icons()
     for desk_dir in src:
@@ -101,7 +103,8 @@ def readdesktops(src=None):
                 else:
                     iconf = load_icon(icons, icon)
 
-            yield name, f"--icon={iconf} --value={desk_dir}/{fname} {name}\n"
+            if name is not None:
+                yield name, f"--icon={iconf} --value={desk_dir}/{fname} {name}\n"
 
 def run(src=None, args=[]):
     p = subprocess.Popen(["dmenu", "-i",
