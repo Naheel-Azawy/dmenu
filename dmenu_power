@@ -1,0 +1,31 @@
+#!/bin/sh
+
+confirm() {
+    c=$(printf 'Yes\nNo\n' |
+            dmenu -i -p "$1" \
+                  -sb red -sf black -nb black -nf red \
+                  -L top-right -y 25)
+    [ "$c" = Yes ]
+}
+
+main() {
+    res=$({
+             echo Suspend
+             echo Shutdown
+             echo Reboot
+             echo Logout
+             echo Lock
+             echo Hibernate
+         } | dmenu -i -l 3 -c 2 -L top-right -y 25)
+
+    case "$res" in
+        Suspend)                      systemctl suspent   ;;
+        Shutdown)  confirm "$res?" && systemctl poweroff  ;;
+        Reboot)    confirm "$res?" && systemctl reboot    ;;
+        Logout)    confirm "$res?" && wm-msg end          ;;
+        Lock)                         ndg lockscreen      ;;
+        Hibernate) confirm "$res?" && systemctl hibernate ;;
+    esac
+}
+
+main "$@"
