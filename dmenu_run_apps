@@ -76,6 +76,8 @@ def readdesktops(src=None):
                f"{HOME}/.local/share/applications"]
     icons = load_icons()
     for desk_dir in src:
+        if not os.path.isdir(desk_dir):
+            continue
         for fname in os.listdir(desk_dir):
             if not fname.endswith(".desktop"):
                 continue
